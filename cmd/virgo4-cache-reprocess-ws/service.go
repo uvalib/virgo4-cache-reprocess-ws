@@ -1,22 +1,16 @@
 package main
 
 import (
-	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
-
-	//"errors"
-	//"fmt"
 	"log"
-	//"net"
 	"net/http"
-	//"path/filepath"
-	//"runtime"
-	//"strconv"
-	//"strings"
-	//"time"
 
+	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"github.com/gin-gonic/gin"
 	//"github.com/uvalib/virgo4-jwt/v4jwt"
 )
+
+// number of times to retry a message put before giving up and terminating
+var sendRetries = uint(3)
 
 // ServiceContext contains common data used by all handlers
 type ServiceContext struct {
@@ -97,7 +91,7 @@ func (svc *ServiceContext) ReindexHandler(c *gin.Context) {
 
 	id := c.Param("id")
 
-	_, err := svc.cache.Get(id)
+	record, err := svc.cache.Get(id)
 	if err != nil {
 		if err == ErrNotInCache {
 			log.Printf("WARNING: item not in cache: %s", id)
@@ -109,7 +103,44 @@ func (svc *ServiceContext) ReindexHandler(c *gin.Context) {
 		return
 	}
 
+	// send to outbound queue
+	err = svc.queueOutbound( record )
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ServiceResponse{err.Error()})
+        return
+	}
+
+	// all good
 	c.JSON(http.StatusOK, ServiceResponse{"OK"})
+}
+
+func (svc *ServiceContext) queueOutbound( record * CacheRecord ) error {
+	outbound := svc.constructMessage( record.ID, record.Type, record.Source, record.Payload )
+	messages := make([]awssqs.Message, 0, 1)
+	messages = append(messages, *outbound )
+	opStatus, err := svc.aws.BatchMessagePut(svc.queue, messages)
+	if err != nil {
+		// if an error we can handle, retry
+		if err == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+			log.Printf("WARNING: item failed to send to the work queue, retrying...")
+
+			// retry the failed item and bail out if we cannot retry
+			err = svc.aws.MessagePutRetry(svc.queue, messages, opStatus, sendRetries)
+		}
+	}
+
+	return err
+}
+
+// construct the outbound SQS message
+func (svc *ServiceContext) constructMessage(id string, theType string, source string, payload string) *awssqs.Message {
+
+	attributes := make([]awssqs.Attribute, 0, 4)
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordId, Value: id})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordType, Value: theType})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordSource, Value: source})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordOperation, Value: awssqs.AttributeValueRecordOperationUpdate})
+	return &awssqs.Message{Attribs: attributes, Payload: []byte(payload)}
 }
 
 //
