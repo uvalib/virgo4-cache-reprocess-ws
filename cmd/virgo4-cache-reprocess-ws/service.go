@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"github.com/gin-gonic/gin"
+	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	//"github.com/uvalib/virgo4-jwt/v4jwt"
 )
 
@@ -104,20 +104,22 @@ func (svc *ServiceContext) ReindexHandler(c *gin.Context) {
 	}
 
 	// send to outbound queue
-	err = svc.queueOutbound( record )
+	err = svc.queueOutbound(record)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ServiceResponse{err.Error()})
-        return
+		return
 	}
+
+	log.Printf("INFO: item submitted for reindexing: %s", id)
 
 	// all good
 	c.JSON(http.StatusOK, ServiceResponse{"OK"})
 }
 
-func (svc *ServiceContext) queueOutbound( record * CacheRecord ) error {
-	outbound := svc.constructMessage( record.ID, record.Type, record.Source, record.Payload )
+func (svc *ServiceContext) queueOutbound(record *CacheRecord) error {
+	outbound := svc.constructMessage(record.ID, record.Type, record.Source, record.Payload)
 	messages := make([]awssqs.Message, 0, 1)
-	messages = append(messages, *outbound )
+	messages = append(messages, *outbound)
 	opStatus, err := svc.aws.BatchMessagePut(svc.queue, messages)
 	if err != nil {
 		// if an error we can handle, retry
