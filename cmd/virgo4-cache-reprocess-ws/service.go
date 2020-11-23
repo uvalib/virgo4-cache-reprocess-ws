@@ -63,26 +63,21 @@ func (svc *ServiceContext) VersionHandler(c *gin.Context) {
 
 // HealthCheckHandler reports the health of the serivce
 func (svc *ServiceContext) HealthCheckHandler(c *gin.Context) {
-	//internalServiceError := false
 
 	type hcResp struct {
 		Healthy bool   `json:"healthy"`
 		Message string `json:"message,omitempty"`
 	}
 
-	hcDB := hcResp{Healthy: true}
-	//if ping != nil {
-	//	internalServiceError = true
-	//	hcSolr = hcResp{Healthy: false, Message: ping.Error()}
-	//}
-
+	dbHealthy := svc.cache.Healthcheck()
+	hcDB := hcResp{Healthy: dbHealthy}
 	hcMap := make(map[string]hcResp)
 	hcMap["database"] = hcDB
 
 	hcStatus := http.StatusOK
-	//if internalServiceError == true {
-	//	hcStatus = http.StatusInternalServerError
-	//}
+	if dbHealthy == false {
+		hcStatus = http.StatusInternalServerError
+	}
 
 	c.JSON(hcStatus, hcMap)
 }

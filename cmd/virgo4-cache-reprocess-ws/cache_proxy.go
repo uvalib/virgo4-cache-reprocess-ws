@@ -21,6 +21,7 @@ var getRequestTimeLimit = int64(100)
 // CacheProxy - our interface
 type CacheProxy interface {
 	Get(string) (*CacheRecord, error)
+	Healthcheck() bool
 }
 
 // our implementation
@@ -79,6 +80,21 @@ func (ci *cacheProxyImpl) Get(key string) (*CacheRecord, error) {
 	}
 
 	return &search, nil
+}
+
+func (ci *cacheProxyImpl) Healthcheck() bool {
+	var result struct {
+		Result int `db:"result"`
+	}
+
+	q := ci.db.NewQuery("select 1 as result")
+	err := q.One(&result)
+	if err != nil {
+		log.Printf("WARNING: healthcheck failure: %s", err.Error())
+		return false
+	}
+
+	return true
 }
 
 // sometimes it is interesting to know if our DB queries are slow
