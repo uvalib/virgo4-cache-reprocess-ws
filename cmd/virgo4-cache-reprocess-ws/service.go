@@ -12,6 +12,11 @@ import (
 // number of times to retry a message put before giving up and terminating
 var sendRetries = uint(3)
 
+// this service may be used to reindex newly published items. In this case, the item identifier might not exist
+// in a service cache so this attribute may be used to ignore the cache and lookup the item in an external
+// service anyway. Typically done by the tracksys enrich service.
+var ignoreCacheAttributeName = "ignore-cache"
+
 // ServiceContext contains common data used by all handlers
 type ServiceContext struct {
 	config *ServiceConfig
@@ -140,7 +145,8 @@ func (svc *ServiceContext) queueOutbound(record *CacheRecord) error {
 // construct the outbound SQS message
 func (svc *ServiceContext) constructMessage(id string, theType string, source string, payload string) *awssqs.Message {
 
-	attributes := make([]awssqs.Attribute, 0, 4)
+	attributes := make([]awssqs.Attribute, 0, 5)
+	attributes = append(attributes, awssqs.Attribute{Name: ignoreCacheAttributeName, Value: "true"})
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordId, Value: id})
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordType, Value: theType})
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordSource, Value: source})
