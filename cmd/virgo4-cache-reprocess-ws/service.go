@@ -86,6 +86,7 @@ func (svc *ServiceContext) ReindexHandler(c *gin.Context) {
 
 	id := c.Param("id")
 
+	// check the cache
 	record, err := svc.cache.Get(id)
 	if err != nil {
 		if err == ErrNotInCache {
@@ -95,6 +96,13 @@ func (svc *ServiceContext) ReindexHandler(c *gin.Context) {
 			log.Printf("ERROR: cache lookup: %s", err.Error())
 			c.JSON(http.StatusInternalServerError, ServiceResponse{err.Error()})
 		}
+		return
+	}
+
+	// check the data source to ensure this is the correct item type for the configuration
+	if record.Source != svc.config.DataSourceName {
+		log.Printf("ERROR: incorrect source type for %s; expected %s, got %s", id, svc.config.DataSourceName, record.Source)
+		c.JSON(http.StatusUnprocessableEntity, ServiceResponse{"Unprocessable Entity"})
 		return
 	}
 

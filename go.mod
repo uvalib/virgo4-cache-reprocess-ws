@@ -3,7 +3,7 @@ module github.com/uvalib/virgo4-cache-reprocess-ws
 go 1.15
 
 require (
-	github.com/aws/aws-sdk-go v1.35.33 // indirect
+	github.com/aws/aws-sdk-go v1.35.34 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ozzo/ozzo-dbx v1.5.0
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
