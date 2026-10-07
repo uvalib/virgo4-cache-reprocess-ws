@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 # run application
 
 ./bin/virgo4-cache-reprocess-ws
