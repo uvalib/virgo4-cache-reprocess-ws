@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -11,9 +13,6 @@ import (
 
 // ErrNotInCache - item not in the cache
 var ErrNotInCache = fmt.Errorf("item not in cache")
-
-// returned when a record is not located
-var notFound = "sql: no rows in result set"
 
 // log a warning if any postgres request takes longer than this
 var getRequestTimeLimit = int64(100)
@@ -69,7 +68,7 @@ func (ci *cacheProxyImpl) Get(key string) (*CacheRecord, error) {
 	ci.warnIfSlow(elapsed, getRequestTimeLimit, fmt.Sprintf("CacheGet (id:%s)", key))
 
 	if err != nil {
-		if err.Error() == notFound {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotInCache
 		}
 		return nil, err
