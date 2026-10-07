@@ -49,7 +49,7 @@ func envToInt(env string) int {
 	number := ensureSetAndNonEmpty(env)
 	n, err := strconv.Atoi(number)
 	if err != nil {
-
+		log.Printf("environment variable not an integer: [%s] = [%s]", env, number)
 		os.Exit(1)
 	}
 	return n
